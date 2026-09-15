@@ -12,6 +12,7 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 
 add_executable(field_target_node src/field_target_node.cpp)
 
@@ -21,6 +22,7 @@ ament_target_dependencies(field_target_node
   tf2_ros
   tf2_geometry_msgs
   geometry_msgs
+  std_msgs
 )
 
 target_include_directories(field_target_node PUBLIC

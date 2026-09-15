@@ -5,6 +5,7 @@
 
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/float32.hpp"
 #include "tf2/LinearMath/Quaternion.h"
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/static_transform_broadcaster.h"
@@ -53,6 +54,11 @@ public:
         field_timer_ = this->create_wall_timer(
             std::chrono::milliseconds(100), std::bind(&FieldTargetNode::field_search, this)
         );
+        bucket_publisher = this->create_publisher<std_msgs::msg::Float32>("bucket_target", 10);
+        move_bucket_publisher =
+            this->create_publisher<std_msgs::msg::Float32>("move_bucket_target", 10);
+        flag_publisher = this->create_publisher<std_msgs::msg::Float32>("flag_target", 10);
+        desk_publisher = this->create_publisher<std_msgs::msg::Float32>("desk_target", 10);
     }
 
 private:
@@ -75,6 +81,11 @@ private:
     rclcpp::TimerBase::SharedPtr init_timer_;
     rclcpp::TimerBase::SharedPtr lookup_timer_;
     rclcpp::TimerBase::SharedPtr field_timer_;
+
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr bucket_publisher;
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr move_bucket_publisher;
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr flag_publisher;
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr desk_publisher;
 
     bool fielda = true;
 
@@ -152,18 +163,38 @@ private:
 
         } catch (tf2::TransformException& ex) {
         }
-        if (found_targets.empty()) {
-            RCLCPP_INFO(this->get_logger(), "99rad");
-        }
+        float bucket_val      = 99.0f;
+        float move_bucket_val = 99.0f;
+        float flag_val        = 99.0f;
+        float desk_val        = 99.0f;
 
-        if (found_targets.size() > 4) {
-            found_targets.resize(4);
-        }
-
-        // 4. 最大4つになった角度（rad）をシンプルに表示
         for (const auto& t : found_targets) {
-            RCLCPP_INFO(this->get_logger(), "%.2f", t.angle_rad);
+            float ang = static_cast<float>(t.angle_rad);
+            if (t.name.find("bucket") != std::string::npos) {
+                bucket_val = ang;
+            } else if (t.name.find("opponent_robot") != std::string::npos) {
+                move_bucket_val = ang;
+            } else if (t.name.find("flag") != std::string::npos) {
+                flag_val = ang;
+            } else if (t.name.find("desk") != std::string::npos) {
+                desk_val = ang;
+            }
         }
+
+        std_msgs::msg::Float32 bucket_msg;
+        std_msgs::msg::Float32 move_bucket_msg;
+        std_msgs::msg::Float32 flag_msg;
+        std_msgs::msg::Float32 desk_msg;
+
+        bucket_msg.data      = bucket_val;
+        move_bucket_msg.data = move_bucket_val;
+        flag_msg.data        = flag_val;
+        desk_msg.data        = desk_val;
+
+        bucket_publisher->publish(bucket_msg);
+        move_bucket_publisher->publish(move_bucket_msg);
+        flag_publisher->publish(flag_msg);
+        desk_publisher->publish(desk_msg);
     }
     void field_search()
     {
