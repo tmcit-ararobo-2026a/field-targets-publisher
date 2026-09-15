@@ -17,13 +17,36 @@ public:
     {
         tf_buffer_   = std::make_shared<tf2_ros::Buffer>(this->get_clock());
         tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+        targets_     = {
+            // 領域A
+            {    "flag_a_base",   0.55,  3.025,   (0.0 + 0.18) / 2.0},
+            {       "desk_1_a", -2.295,  3.855,   (0.0 + 0.76) / 2.0},
+            {       "desk_2_a",  3.395,  3.855,   (0.0 + 0.76) / 2.0},
+            {       "desk_3_a", -4.895,  5.445,   (0.0 + 0.76) / 2.0},
+            {       "desk_4_a", -4.750,  1.105,   (0.0 + 0.76) / 2.0},
+            {     "bucket_1_a",   0.55,   0.87,  (0.0 + 0.255) / 2.0},
+            {"bucket_2_a_base",  -1.27,   1.48,   (0.0 + 0.60) / 2.0},
+            {"bucket_2_a_body",  -1.27,   1.48, (0.60 + 0.855) / 2.0},
+            {"bucket_3_a_base",   2.37,   1.48,   (0.0 + 0.30) / 2.0},
+            {"bucket_3_a_body",   2.37,   1.48, (0.30 + 0.555) / 2.0},
 
-        // 起動直後に1回だけ静的TFを配信するタイマー
+            // 領域B
+            {    "flag_b_base",   0.55, -3.025,   (0.0 + 0.18) / 2.0},
+            {       "desk_1_b", -2.295, -3.855,   (0.0 + 0.76) / 2.0},
+            {       "desk_2_b",  3.395, -3.855,   (0.0 + 0.76) / 2.0},
+            {       "desk_3_b", -4.895, -5.445,   (0.0 + 0.76) / 2.0},
+            {       "desk_4_b", -4.750, -1.105,   (0.0 + 0.76) / 2.0},
+            {     "bucket_1_b",   0.55,  -0.87,  (0.0 + 0.255) / 2.0},
+            {"bucket_2_b_base",  -1.27,  -1.48,   (0.0 + 0.60) / 2.0},
+            {"bucket_2_b_body",  -1.27,  -1.48, (0.60 + 0.855) / 2.0},
+            {"bucket_3_b_base",   2.37,  -1.48,   (0.0 + 0.30) / 2.0},
+            {"bucket_3_b_body",   2.37,  -1.48, (0.30 + 0.555) / 2.0}
+        };
+
         init_timer_ = this->create_wall_timer(
             std::chrono::milliseconds(100), std::bind(&FieldTargetNode::init_and_publish, this)
         );
 
-        // 定期的に（例: 1秒ごとに）相対位置を調べるタイマー
         lookup_timer_ = this->create_wall_timer(
             std::chrono::seconds(1), std::bind(&FieldTargetNode::lookup_target_position, this)
         );
@@ -39,6 +62,22 @@ private:
         double y;
         double z;
     };
+    struct TargetData {
+        std::string name;
+        double angle_rad;
+    };
+    std::vector<TargetInfo> targets_;
+
+    std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_static_broadcaster_;
+    std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+
+    rclcpp::TimerBase::SharedPtr init_timer_;
+    rclcpp::TimerBase::SharedPtr lookup_timer_;
+    rclcpp::TimerBase::SharedPtr field_timer_;
+
+    bool fielda = true;
+
     void init_and_publish()
     {
         init_timer_->cancel();
@@ -49,50 +88,9 @@ private:
         publish_static_transforms();
     }
 
-    std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_static_broadcaster_;
-    std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
-    std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
-
-    rclcpp::TimerBase::SharedPtr init_timer_;
-    rclcpp::TimerBase::SharedPtr lookup_timer_;
-    rclcpp::TimerBase::SharedPtr field_timer_;
-
-    bool fielda;
     void publish_static_transforms()
     {
-        // 提示されたすべてのオブジェクトデータのリスト
-        std::vector<TargetInfo> targets = {
-            // 旗
-            {    "flag_a_base",   0.55,  3.025,   (0.0 + 0.18) / 2.0},
-            {    "flag_b_base",   0.55, -3.025,   (0.0 + 0.18) / 2.0},
-
-            // 机
-            {       "desk_1_a", -2.295,  3.855,   (0.0 + 0.76) / 2.0},
-            {       "desk_1_b", -2.295, -3.855,   (0.0 + 0.76) / 2.0},
-            {       "desk_2_a",  3.395,  3.855,   (0.0 + 0.76) / 2.0},
-            {       "desk_2_b",  3.395, -3.855,   (0.0 + 0.76) / 2.0},
-            {       "desk_3_a", -4.895,  5.445,   (0.0 + 0.76) / 2.0},
-            {       "desk_3_b", -4.895, -5.445,   (0.0 + 0.76) / 2.0},
-            {       "desk_4_a", -4.750,  1.105,   (0.0 + 0.76) / 2.0},
-            {       "desk_4_b", -4.750, -1.105,   (0.0 + 0.76) / 2.0},
-
-            // 固定バケツ①
-            {     "bucket_1_a",   0.55,   0.87,  (0.0 + 0.255) / 2.0},
-            {     "bucket_1_b",   0.55,  -0.87,  (0.0 + 0.255) / 2.0},
-
-            // 固定バケツ②
-            {"bucket_2_a_base",  -1.27,   1.48,   (0.0 + 0.60) / 2.0},
-            {"bucket_2_a_body",  -1.27,   1.48, (0.60 + 0.855) / 2.0},
-            {"bucket_2_b_base",  -1.27,  -1.48,   (0.0 + 0.60) / 2.0},
-            {"bucket_2_b_body",  -1.27,  -1.48, (0.60 + 0.855) / 2.0},
-
-            // 固定バケツ③
-            {"bucket_3_a_base",   2.37,   1.48,   (0.0 + 0.30) / 2.0},
-            {"bucket_3_a_body",   2.37,   1.48, (0.30 + 0.555) / 2.0},
-            {"bucket_3_b_base",   2.37,  -1.48,   (0.0 + 0.30) / 2.0},
-            {"bucket_3_b_body",   2.37,  -1.48, (0.30 + 0.555) / 2.0}
-        };
-        for (const auto& target : targets) {
+        for (const auto& target : targets_) {
             geometry_msgs::msg::TransformStamped t;
             t.header.stamp    = this->get_clock()->now();
             t.header.frame_id = "map";
@@ -111,19 +109,60 @@ private:
 
             tf_static_broadcaster_->sendTransform(t);
         }
-        RCLCPP_INFO(this->get_logger(), "tf_finish");
+        RCLCPP_INFO(this->get_logger(), "tf_map_finish");
     }
 
     void lookup_target_position()
     {
+        std::string target_suffix  = fielda ? "_b" : "_a";
+        const double threshold_rad = 20.0 * M_PI / 180.0;
+        std::vector<TargetData> found_targets;
+
+        for (const auto& target : targets_) {
+            if (target.name.rfind(target_suffix) == std::string::npos) {
+                continue;  // 自陣側のオブジェクトならスキップ
+            }
+
+            try {
+                geometry_msgs::msg::TransformStamped targets_position =
+                    tf_buffer_->lookupTransform("base_link", target.name, tf2::TimePointZero);
+                double x = targets_position.transform.translation.x;
+                double y = targets_position.transform.translation.y;
+
+                double angle_rad = std::atan2(y, x);
+
+                if (x >= 0 && angle_rad >= -threshold_rad && angle_rad <= threshold_rad) {
+                    found_targets.push_back({target.name, angle_rad});
+                }
+            } catch (tf2::TransformException& ex) {
+            }
+        }
+
         try {
-            geometry_msgs::msg::TransformStamped target_transform =
-                tf_buffer_->lookupTransform("base_link", "bucket_1_a", tf2::TimePointZero);
-            double x = target_transform.transform.translation.x;
-            double y = target_transform.transform.translation.y;
-            RCLCPP_INFO(this->get_logger(), "%f,%f", x, y);
+            geometry_msgs::msg::TransformStamped opp_transform =
+                tf_buffer_->lookupTransform("base_link", "opponent_robot", tf2::TimePointZero);
+
+            double x = opp_transform.transform.translation.x;
+            double y = opp_transform.transform.translation.y;
+
+            double angle_rad = std::atan2(y, x);
+            if (x >= 0 && angle_rad >= -threshold_rad && angle_rad <= threshold_rad) {
+                found_targets.push_back({"opponent_robot", angle_rad});
+            }
+
         } catch (tf2::TransformException& ex) {
-            RCLCPP_WARN(this->get_logger(), "Could not transform: %s", ex.what());
+        }
+        if (found_targets.empty()) {
+            RCLCPP_INFO(this->get_logger(), "99rad");
+        }
+
+        if (found_targets.size() > 4) {
+            found_targets.resize(4);
+        }
+
+        // 4. 最大4つになった角度（rad）をシンプルに表示
+        for (const auto& t : found_targets) {
+            RCLCPP_INFO(this->get_logger(), "%.2f", t.angle_rad);
         }
     }
     void field_search()
@@ -149,7 +188,6 @@ private:
         }
     }
 };
-
 int main(int argc, char* argv[])
 {
     rclcpp::init(argc, argv);
