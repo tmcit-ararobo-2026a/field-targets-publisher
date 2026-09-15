@@ -6,15 +6,29 @@
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "tf2/LinearMath/Quaternion.h"
+#include "tf2_ros/buffer.h"
 #include "tf2_ros/static_transform_broadcaster.h"
+#include "tf2_ros/transform_listener.h"
 
 class FieldTargetNode : public rclcpp::Node
 {
 public:
     FieldTargetNode() : Node("field_target_node")
     {
-        timer_ = this->create_wall_timer(
+        tf_buffer_   = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+        tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+
+        // 起動直後に1回だけ静的TFを配信するタイマー
+        init_timer_ = this->create_wall_timer(
             std::chrono::milliseconds(100), std::bind(&FieldTargetNode::init_and_publish, this)
+        );
+
+        // 定期的に（例: 1秒ごとに）相対位置を調べるタイマー
+        lookup_timer_ = this->create_wall_timer(
+            std::chrono::seconds(1), std::bind(&FieldTargetNode::lookup_target_position, this)
+        );
+        field_timer_ = this->create_wall_timer(
+            std::chrono::milliseconds(100), std::bind(&FieldTargetNode::field_search, this)
         );
     }
 
@@ -27,10 +41,8 @@ private:
     };
     void init_and_publish()
     {
-        // タイマーが何回も動かないように即座にキャンセルする
-        timer_->cancel();
+        init_timer_->cancel();
 
-        // ノードが完全に立ち上がった安全な状態でブロードキャスターを初期化
         tf_static_broadcaster_ =
             std::make_shared<tf2_ros::StaticTransformBroadcaster>(shared_from_this());
 
@@ -38,7 +50,14 @@ private:
     }
 
     std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_static_broadcaster_;
-    rclcpp::TimerBase::SharedPtr timer_;
+    std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+
+    rclcpp::TimerBase::SharedPtr init_timer_;
+    rclcpp::TimerBase::SharedPtr lookup_timer_;
+    rclcpp::TimerBase::SharedPtr field_timer_;
+
+    bool fielda;
     void publish_static_transforms()
     {
         // 提示されたすべてのオブジェクトデータのリスト
@@ -93,6 +112,41 @@ private:
             tf_static_broadcaster_->sendTransform(t);
         }
         RCLCPP_INFO(this->get_logger(), "tf_finish");
+    }
+
+    void lookup_target_position()
+    {
+        try {
+            geometry_msgs::msg::TransformStamped target_transform =
+                tf_buffer_->lookupTransform("base_link", "bucket_1_a", tf2::TimePointZero);
+            double x = target_transform.transform.translation.x;
+            double y = target_transform.transform.translation.y;
+            RCLCPP_INFO(this->get_logger(), "%f,%f", x, y);
+        } catch (tf2::TransformException& ex) {
+            RCLCPP_WARN(this->get_logger(), "Could not transform: %s", ex.what());
+        }
+    }
+    void field_search()
+    {
+        try {
+            geometry_msgs::msg::TransformStamped field_transform =
+                tf_buffer_->lookupTransform("map", "base_link", tf2::TimePointZero);
+            if (field_transform.transform.translation.y >= 0 &&
+                field_transform.transform.translation.y <= 5.7) {
+                fielda = true;
+            } else if (
+                field_transform.transform.translation.y <= 0 &&
+                field_transform.transform.translation.y >= -5.7
+            ) {
+                fielda = false;
+            }
+            RCLCPP_INFO(this->get_logger(), "%d", fielda);
+            field_timer_->cancel();
+        } catch (tf2::TransformException& ex) {
+            RCLCPP_WARN(
+                this->get_logger(), "Waiting for robot position to determine area: %s", ex.what()
+            );
+        }
     }
 };
 
