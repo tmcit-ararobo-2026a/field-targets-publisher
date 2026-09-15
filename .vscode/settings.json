@@ -24,7 +24,7 @@
     "C_Cpp.clang_format_style": "file",
     "ros.distro": "humble",
     "ROS2.distro": "humble",
-    "cmake.sourceDirectory": "/home/kamagata/ros2_ws/src/field-targets-publisher/field-target-pub",
+    "cmake.sourceDirectory": "/home/akeru/ros2_ws/src/field-targets-publisher/field-target-pub",
     "python.autoComplete.extraPaths": [
         "/home/kamagata/ros2_ws/install/livox_ros_driver2/local/lib/python3.10/dist-packages",
         "/opt/ros/humble/lib/python3.10/site-packages",
