@@ -204,11 +204,25 @@ private:
             if (field_transform.transform.translation.y >= 0 &&
                 field_transform.transform.translation.y <= 5.7) {
                 fielda = true;
+                RCLCPP_INFO(this->get_logger(), "fieldA");
+                RCLCPP_INFO(
+                    this->get_logger(),
+                    "x:%f y:%f",
+                    field_transform.transform.translation.x,
+                    field_transform.transform.translation.y
+                );
             } else if (
                 field_transform.transform.translation.y <= 0 &&
                 field_transform.transform.translation.y >= -5.7
             ) {
                 fielda = false;
+                RCLCPP_INFO(this->get_logger(), "fieldB");
+                RCLCPP_INFO(
+                    this->get_logger(),
+                    "x:%f y:%f",
+                    field_transform.transform.translation.x,
+                    field_transform.transform.translation.y
+                );
             }
             RCLCPP_INFO(this->get_logger(), "%d", fielda);
             field_timer_->cancel();
