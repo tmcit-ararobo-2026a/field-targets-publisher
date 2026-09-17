@@ -1,5 +1,6 @@
 #include <chrono>
 #include <memory>
+#include <std_msgs/msg/float32_multi_array.hpp>
 #include <string>
 #include <vector>
 
@@ -20,28 +21,24 @@ public:
         tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
         targets_     = {
             // 領域A
-            {    "flag_a_base",   0.55,  3.025,   (0.0 + 0.18) / 2.0},
-            {       "desk_1_a", -2.295,  3.855,   (0.0 + 0.76) / 2.0},
-            {       "desk_2_a",  3.395,  3.855,   (0.0 + 0.76) / 2.0},
-            {       "desk_3_a", -4.895,  5.445,   (0.0 + 0.76) / 2.0},
-            {       "desk_4_a", -4.750,  1.105,   (0.0 + 0.76) / 2.0},
-            {     "bucket_1_a",   0.55,   0.87,  (0.0 + 0.255) / 2.0},
-            {"bucket_2_a_base",  -1.27,   1.48,   (0.0 + 0.60) / 2.0},
-            {"bucket_2_a_body",  -1.27,   1.48, (0.60 + 0.855) / 2.0},
-            {"bucket_3_a_base",   2.37,   1.48,   (0.0 + 0.30) / 2.0},
-            {"bucket_3_a_body",   2.37,   1.48, (0.30 + 0.555) / 2.0},
+            {    "flag_a_base",   0.55,  3.025,  (0.0 + 0.18) / 2.0},
+            {       "desk_1_a", -2.295,  3.855,  (0.0 + 0.76) / 2.0},
+            {       "desk_2_a",  3.395,  3.855,  (0.0 + 0.76) / 2.0},
+            {       "desk_3_a", -4.895,  5.445,  (0.0 + 0.76) / 2.0},
+            {       "desk_4_a", -4.750,  1.105,  (0.0 + 0.76) / 2.0},
+            {     "bucket_1_a",   0.55,   0.87, (0.0 + 0.255) / 2.0},
+            {"bucket_2_a_base",  -1.27,   1.48,  (0.0 + 0.60) / 2.0},
+            {"bucket_3_a_base",   2.37,   1.48,  (0.0 + 0.30) / 2.0},
 
             // 領域B
-            {    "flag_b_base",   0.55, -3.025,   (0.0 + 0.18) / 2.0},
-            {       "desk_1_b", -2.295, -3.855,   (0.0 + 0.76) / 2.0},
-            {       "desk_2_b",  3.395, -3.855,   (0.0 + 0.76) / 2.0},
-            {       "desk_3_b", -4.895, -5.445,   (0.0 + 0.76) / 2.0},
-            {       "desk_4_b", -4.750, -1.105,   (0.0 + 0.76) / 2.0},
-            {     "bucket_1_b",   0.55,  -0.87,  (0.0 + 0.255) / 2.0},
-            {"bucket_2_b_base",  -1.27,  -1.48,   (0.0 + 0.60) / 2.0},
-            {"bucket_2_b_body",  -1.27,  -1.48, (0.60 + 0.855) / 2.0},
-            {"bucket_3_b_base",   2.37,  -1.48,   (0.0 + 0.30) / 2.0},
-            {"bucket_3_b_body",   2.37,  -1.48, (0.30 + 0.555) / 2.0}
+            {    "flag_b_base",   0.55, -3.025,  (0.0 + 0.18) / 2.0},
+            {       "desk_1_b", -2.295, -3.855,  (0.0 + 0.76) / 2.0},
+            {       "desk_2_b",  3.395, -3.855,  (0.0 + 0.76) / 2.0},
+            {       "desk_3_b", -4.895, -5.445,  (0.0 + 0.76) / 2.0},
+            {       "desk_4_b", -4.750, -1.105,  (0.0 + 0.76) / 2.0},
+            {     "bucket_1_b",   0.55,  -0.87, (0.0 + 0.255) / 2.0},
+            {"bucket_2_b_base",  -1.27,  -1.48,  (0.0 + 0.60) / 2.0},
+            {"bucket_3_b_base",   2.37,  -1.48,  (0.0 + 0.30) / 2.0},
         };
 
         init_timer_ = this->create_wall_timer(
@@ -54,11 +51,15 @@ public:
         field_timer_ = this->create_wall_timer(
             std::chrono::milliseconds(100), std::bind(&FieldTargetNode::field_search, this)
         );
-        bucket_publisher = this->create_publisher<std_msgs::msg::Float32>("bucket_target", 10);
+        bucket_publisher = this->create_publisher<std_msgs::msg::Float32MultiArray>(
+            "/robot/command/fixed_buckets_angle", 10
+        );
         move_bucket_publisher =
-            this->create_publisher<std_msgs::msg::Float32>("move_bucket_target", 10);
-        flag_publisher = this->create_publisher<std_msgs::msg::Float32>("flag_target", 10);
-        desk_publisher = this->create_publisher<std_msgs::msg::Float32>("desk_target", 10);
+            this->create_publisher<std_msgs::msg::Float32>("robot/command/move_bucket_angle", 10);
+        flag_publisher =
+            this->create_publisher<std_msgs::msg::Float32>("/robot/command/flag_angle", 10);
+        desk_publisher =
+            this->create_publisher<std_msgs::msg::Float32>("robot/command/desk_angle", 10);
     }
 
 private:
@@ -82,7 +83,7 @@ private:
     rclcpp::TimerBase::SharedPtr lookup_timer_;
     rclcpp::TimerBase::SharedPtr field_timer_;
 
-    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr bucket_publisher;
+    rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr bucket_publisher;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr move_bucket_publisher;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr flag_publisher;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr desk_publisher;
@@ -163,15 +164,19 @@ private:
 
         } catch (tf2::TransformException& ex) {
         }
-        float bucket_val      = 99.0f;
-        float move_bucket_val = 99.0f;
-        float flag_val        = 99.0f;
-        float desk_val        = 99.0f;
+        std::vector<float> bucket_val = {99.0f, 99.0f, 99.0f};
+        float move_bucket_val         = 99.0f;
+        float flag_val                = 99.0f;
+        float desk_val                = 99.0f;
 
         for (const auto& t : found_targets) {
             float ang = static_cast<float>(t.angle_rad);
-            if (t.name.find("bucket") != std::string::npos) {
-                bucket_val = ang;
+            if (t.name.find("bucket_1") != std::string::npos) {
+                bucket_val[0] = ang;
+            } else if (t.name.find("bucket_2") != std::string::npos) {
+                bucket_val[1] = ang;
+            } else if (t.name.find("bucket_3") != std::string::npos) {
+                bucket_val[2] = ang;
             } else if (t.name.find("opponent_robot") != std::string::npos) {
                 move_bucket_val = ang;
             } else if (t.name.find("flag") != std::string::npos) {
@@ -181,7 +186,7 @@ private:
             }
         }
 
-        std_msgs::msg::Float32 bucket_msg;
+        std_msgs::msg::Float32MultiArray bucket_msg;
         std_msgs::msg::Float32 move_bucket_msg;
         std_msgs::msg::Float32 flag_msg;
         std_msgs::msg::Float32 desk_msg;
