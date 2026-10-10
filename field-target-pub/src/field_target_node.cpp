@@ -232,9 +232,9 @@ private:
             RCLCPP_INFO(this->get_logger(), "%d", fielda);
             field_timer_->cancel();
         } catch (tf2::TransformException& ex) {
-            RCLCPP_WARN(
+            /*RCLCPP_WARN(
                 this->get_logger(), "Waiting for robot position to determine area: %s", ex.what()
-            );
+            );*/
         }
     }
 };
