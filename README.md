@@ -42,14 +42,14 @@ git clone https://github.com/tmcit-ararobo-2026a/field-targets-publisher.git
 
 ```bash
 cd ~/your_ws
-colcon build --symlink-install --packages-select field-target-pub
+colcon build --symlink-install --packages-select field_target_pub
 source install/setup.bash
 ```
 
 ### 実行
 
 ```bash
-ros2 run field-target-pub field_target_node
+ros2 run field_target_pub field_target_node
 ```
 
 ### パブリッシュされるトピック一覧
@@ -77,3 +77,10 @@ ros2 run field-target-pub field_target_node
 ## 5. ライセンス
 
 本リポジトリは [MITライセンス](./LICENSE) のもとで公開されている。
+
+## STM32新仕様向け型生成（T01・T02b）
+
+ROSパッケージ名は `field_target_pub`。リポジトリ名と既存 `field-target-pub/` ディレクトリは維持する。
+`-DBUILD_RUNTIME_NODES=OFF` で型生成を実行ノードから分離できる。
+新しい型付き対象配信・承認済み停止PoseはT09で追加する。既存の座標・旧角度出力は
+承認済み停止位置として扱わず、managerの制御入力へ接続しない。

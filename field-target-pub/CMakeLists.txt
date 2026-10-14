@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(field-target-pub)
+project(field_target_pub LANGUAGES C CXX)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -7,6 +7,10 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(builtin_interfaces REQUIRED)
+option(BUILD_RUNTIME_NODES "Build fixed target runtime node" ON)
+if(BUILD_RUNTIME_NODES)
 find_package(rclcpp REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
@@ -33,7 +37,10 @@ install(TARGETS
   field_target_node
   DESTINATION lib/${PROJECT_NAME})
 
+endif()
+
   install(DIRECTORY launch
     DESTINATION share/${PROJECT_NAME})
 
+ament_export_dependencies(rosidl_default_runtime)
 ament_package()
