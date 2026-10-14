@@ -61,3 +61,5 @@ _autosave-*
 *.kicad_pcb-bak
 fp-info-cache
 **/.history/
+__pycache__/
+.pytest_cache/

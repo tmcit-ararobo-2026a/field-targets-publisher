@@ -12,6 +12,9 @@ geometry_msgs/PointStamped aim_point
 geometry_msgs/PoseStamped stop_pose
 bool aim_valid
 bool stop_pose_valid
+# Mathematical base_link bearing; distinct from the unconfirmed STM32 angle convention.
+bool bearing_valid
+float64 bearing_rad
 # Only approved integer degree values. No invalid sentinel is defined.
 bool angle_valid
 int8 angle_deg

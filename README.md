@@ -1,4 +1,4 @@
-# base-ros2
+# field_target_pub
 
 2026NHKロボコンAチームのために作成された、フィールド上のターゲット位置および自機位置を管理・パブリッシュするROS 2パッケージ。
 
@@ -14,7 +14,7 @@
 
 ## 1. 概要
 
-本ノード（`field_target_node`）は、ロボットの現在位置（領域A / 領域Bの自動判定）を基に、自機の視野角40度（前方 $\pm20^\circ$ 以内）に入るフィールド上のオブジェクトを検出し、それぞれの相対角度を計算して ROS 2 トピックとしてパブリッシュする。
+本ノード（`field_target_node`）は、明示した承認チーム・地図プロファイルから固定照準点・停止Pose・中心TFを配信する。自機位置からチームを推測せず、STM32の角度変換が未確定の間はwire角度を有効にしない。
 
 ---
 
@@ -28,8 +28,8 @@
 
 ### 前提条件
 
-- ROS 2 (Humble / Iron / Jazzy 等)
-- `rclcpp`, `tf2_ros`, `tf2_geometry_msgs`, `geometry_msgs`, `std_msgs`
+- ROS 2 Humble（本変更の検証対象）
+- `rclcpp`, `tf2_ros`, `geometry_msgs`, `std_msgs`, `rosidl_default_generators`, `nlohmann_json`
 
 ### クローン
 
@@ -54,23 +54,17 @@ ros2 run field_target_pub field_target_node
 
 ### パブリッシュされるトピック一覧
 
-※オブジェクトが視野内に存在しない場合、すべてのトピックに `99.0` が送信される。
-
 | トピック名 | 型 | 説明 |
 | :--- | :--- | :--- |
-| `bucket_target` | `std_msgs/msg/Float32` | バケツ（`bucket_1`, `2`, `3`）の相対角度（rad） |
-| `move_bucket_target` | `std_msgs/msg/Float32` | 相手ロボット（`opponent_robot`）の相対角度（rad） |
-| `flag_target` | `std_msgs/msg/Float32` | 旗（`flag_base`）の相対角度（rad） |
-| `desk_target` | `std_msgs/msg/Float32` | 机（`desk_1`〜`4`）の相対角度（rad） |
-
----
+| `/field/targets` | `field_target_pub/msg/TargetSet` | チーム・地図・revision・照準点・停止Pose・有効性 |
+| `/tf_static` | `tf2_msgs/msg/TFMessage` | 承認された固定物中心（bucket_/desk_/flag_） |
 
 ## 4. システム構成
 
-- **自動エリア判定**: ロボットのY座標（`map` から見た `base_link`）を監視し、自陣が領域Aか領域Bかを自動で切り替える。
-- **Static TF の配信**: フィールド上の各種目標物（旗、机、バケツなど）の座標を `map` フレーム基準で静的に配信する。
-- **視野角フィルタリング**: 自機から見た各ターゲットの方位角度を計算し、前方40度以内にあるターゲットのみを抽出する。
-- **トピック配信**: カテゴリごとに分類し、視界にない場合はデフォルト値として `99.0` をパブリッシュする。
+- チームはred/blueを明示し、全固定ID 0..6を設定で解決する。
+- 中心TF、照準点、停止Poseを分離する。デフォルト設定は未承認で座標を持たない。
+- 最新のbase_link TFから数学的bearingを計算し、TF断・期限切れではbearing_valid=false。
+- 旧角度Topicと99radは配信しない。STM32用angle_validは未確定契約のためfalse。
 
 ---
 
@@ -82,12 +76,33 @@ ros2 run field_target_pub field_target_node
 
 ROSパッケージ名は `field_target_pub`。リポジトリ名と既存 `field-target-pub/` ディレクトリは維持する。
 `-DBUILD_RUNTIME_NODES=OFF` で型生成を実行ノードから分離できる。
-新しい型付き対象配信・承認済み停止PoseはT09で追加する。既存の座標・旧角度出力は
-承認済み停止位置として扱わず、managerの制御入力へ接続しない。
+型付き対象配信・停止Pose設定をT09で実装した。既存ハードコード座標を承認済み停止位置として流用しない。
 
 ## FieldTarget・TargetSet（T02b）
 
 FieldTargetは照準点・停止Poseを分離し、各validと角度validを持つ。
 TargetSetは明示チーム・地図ID・revision・全体validを持つ。未承認値はvalidとして扱わない。
-T02bは型定義までで、新 `/field/targets` 配信・承認設定の導入はT09の残作業。
+型定義（T02b）に加えT09の配信・承認設定を実装済み。実機プロファイルの確定は残っている。
 旧ノードの自機Yによるチーム推測や99radは新型の有効値へ変換しない。
+
+## 明示チーム・照準点・停止位置（T09）
+
+旧Y座標によるチーム推測、ハードコード対象、旧角度Topic・99radを廃止し、`/field/targets` を配信する。
+`config/targets.json` はapproved=false・座標なしのテンプレート。
+承認プロファイルはschema_version=1、approved=true、team=red/blue、map_id、map_frame、revision>0と
+全固定ID 0..6のtargetsを持つ。各targetはlabel、stop_pose=[x,y,z,yaw]（2Dのz=0）、
+ID1..6はaim_point=[x,y,z]とobject_center=[x,y,z]が必要。
+中心・照準点・停止位置を流用しない。StartZoneは停止Poseのみで射出照準点を持たない。
+不正・重複・欠落ID・非有限値を拒否し、未承認設定では対象や静的TFを有効配信しない。
+
+`ros2 launch field_target_pub field-target-pub.launch.py config_file:=/approved/profile.json`。
+expected_map_idで地図IDの不一致も拒否できる。manager側でも実際のチーム・地図識別を照合する。
+設定はread-onlyで、変更の反映には再起動と新revisionを使う。
+固定TFは承認されたobject_centerからbucket_/desk_/flag_のcenterフレームを生成し、LPS除外へ接続する。
+有効なbase_link TFから数学的bearing_radを求めるが、STM32の角度符号・丸め・無効値は未確定なので
+angle_validはfalse。承認停止位置・校正・角度契約・実機での地図一致は未完了。
+
+対象IDを持たない固定物もstatic_objects=[{frame_id,object_center:[x,y,z]},...]で明示できる。
+frame_idは一意のbucket_/desk_/flag_接頭辞を持ち、別チーム側や非照準物もLPS除外へ供給する。
+設定変更時はTF利用ノードも再起動し、古い静的除外情報を新地図へ流用しない。
+TFの進行・受信からの単調期限も検査し、ROS時計停止で古いbearingを延長しない。
