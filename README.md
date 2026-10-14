@@ -84,3 +84,10 @@ ROSパッケージ名は `field_target_pub`。リポジトリ名と既存 `field
 `-DBUILD_RUNTIME_NODES=OFF` で型生成を実行ノードから分離できる。
 新しい型付き対象配信・承認済み停止PoseはT09で追加する。既存の座標・旧角度出力は
 承認済み停止位置として扱わず、managerの制御入力へ接続しない。
+
+## FieldTarget・TargetSet（T02b）
+
+FieldTargetは照準点・停止Poseを分離し、各validと角度validを持つ。
+TargetSetは明示チーム・地図ID・revision・全体validを持つ。未承認値はvalidとして扱わない。
+T02bは型定義までで、新 `/field/targets` 配信・承認設定の導入はT09の残作業。
+旧ノードの自機Yによるチーム推測や99radは新型の有効値へ変換しない。

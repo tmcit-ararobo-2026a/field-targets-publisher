@@ -9,6 +9,12 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(builtin_interfaces REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/FieldTarget.msg" "msg/TargetSet.msg"
+  DEPENDENCIES geometry_msgs std_msgs builtin_interfaces)
+
 option(BUILD_RUNTIME_NODES "Build fixed target runtime node" ON)
 if(BUILD_RUNTIME_NODES)
 find_package(rclcpp REQUIRED)
