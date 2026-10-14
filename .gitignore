@@ -63,3 +63,7 @@ fp-info-cache
 **/.history/
 __pycache__/
 .pytest_cache/
+
+# Local documentation and tests
+docs/
+test/

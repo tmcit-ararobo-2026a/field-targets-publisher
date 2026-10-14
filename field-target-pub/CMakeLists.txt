@@ -53,7 +53,8 @@ endif()
   install(DIRECTORY launch config
     DESTINATION share/${PROJECT_NAME})
 
-if(BUILD_TESTING AND BUILD_RUNTIME_NODES)
+if(BUILD_TESTING AND BUILD_RUNTIME_NODES AND
+   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/field_target_test.py")
   find_package(ament_cmake_pytest REQUIRED)
   ament_add_pytest_test(field_target_test test/field_target_test.py
     ENV FIELD_TARGET_EXECUTABLE=$<TARGET_FILE:field_target_node>

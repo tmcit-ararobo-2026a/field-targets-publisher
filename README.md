@@ -87,7 +87,7 @@ ros2 launch field_target_pub field-target-pub.launch.py config_file:=/absolute/p
 
 `map → base_link` TFから数学的な`bearing_rad`を計算し、TF断・期限切れ・時計停止では`bearing_valid=false`にします。通信向け角度の符号・丸め・無効値は未確定のため、`angle_valid`はfalseです。
 
-固定TFを変更する場合は利用ノードも再起動し、古い静的情報を別の地図へ持ち越さないでください。実機の停止位置・照準点・中心座標は実測による確認が必要です。設定試験の詳細は[固定対象の検証記録](docs/target_profile_verification.md)を参照してください。
+固定TFを変更する場合は利用ノードも再起動し、古い静的情報を別の地図へ持ち越さないでください。実機の停止位置・照準点・中心座標は実測による確認が必要です。
 
 ---
 
