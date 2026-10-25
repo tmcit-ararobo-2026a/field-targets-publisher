@@ -46,20 +46,21 @@ public:
         );
 
         lookup_timer_ = this->create_wall_timer(
-            std::chrono::milliseconds(100), std::bind(&FieldTargetNode::lookup_target_position, this)
+            std::chrono::milliseconds(100),
+            std::bind(&FieldTargetNode::lookup_target_position, this)
         );
         field_timer_ = this->create_wall_timer(
             std::chrono::milliseconds(100), std::bind(&FieldTargetNode::field_search, this)
         );
         bucket_publisher = this->create_publisher<std_msgs::msg::Float32MultiArray>(
-            "/robot/command/fixed_buckets_angle", 10
+            "/robot/operation/fixed_buckets_angle", 10
         );
         move_bucket_publisher =
-            this->create_publisher<std_msgs::msg::Float32>("robot/command/move_bucket_angle", 10);
+            this->create_publisher<std_msgs::msg::Float32>("robot/operation/move_bucket_angle", 10);
         flag_publisher =
-            this->create_publisher<std_msgs::msg::Float32>("/robot/command/flag_angle", 10);
+            this->create_publisher<std_msgs::msg::Float32>("/robot/operation/flag_angle", 10);
         desk_publisher =
-            this->create_publisher<std_msgs::msg::Float32>("robot/command/desk_angle", 10);
+            this->create_publisher<std_msgs::msg::Float32>("robot/operation/desk_angle", 10);
     }
 
 private:
@@ -216,10 +217,8 @@ private:
                     field_transform.transform.translation.x,
                     field_transform.transform.translation.y
                 );
-            } else if (
-                field_transform.transform.translation.y <= 0 &&
-                field_transform.transform.translation.y >= -5.7
-            ) {
+            } else if (field_transform.transform.translation.y <= 0 &&
+                       field_transform.transform.translation.y >= -5.7) {
                 fielda = false;
                 RCLCPP_INFO(this->get_logger(), "fieldB");
                 RCLCPP_INFO(
