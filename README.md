@@ -1,6 +1,6 @@
-# field_target_pub
+# base-ros2
 
-2026NHKロボコンAチームのために作成された、フィールド上の固定対象の照準点・停止位置・中心座標を配信するROS 2パッケージです。
+2026NHKロボコンAチームのために作成された、フィールド上のターゲット位置および自機位置を管理・パブリッシュするROS 2パッケージ。
 
 ## 目次
 
@@ -14,13 +14,13 @@
 
 ## 1. 概要
 
-`field_target_node`は設定ファイルで指定したチーム・地図の対象情報を`TargetSet`として配信します。照準点、停止Pose、物体中心を分けて管理し、自機のTFから各対象への方位角を計算します。
+本ノード（`field_target_node`）は、ロボットの現在位置（領域A / 領域Bの自動判定）を基に、自機の視野角40度（前方 $\pm20^\circ$ 以内）に入るフィールド上のオブジェクトを検出し、それぞれの相対角度を計算して ROS 2 トピックとしてパブリッシュする。
 
 ---
 
 ## 2. コントリビューション
 
-[CONTRIBUTING.md](CONTRIBUTING.md)を参照してください。
+[CONTRIBUTING.md](./CONTRIBUTING.md) を参照。
 
 ---
 
@@ -28,69 +28,52 @@
 
 ### 前提条件
 
-ROS 2 Humble、`rclcpp`、`tf2_ros`、`geometry_msgs`、`std_msgs`、`rosidl_default_generators`、`nlohmann_json`を使用します。
+- ROS 2 (Humble / Iron / Jazzy 等)
+- `rclcpp`, `tf2_ros`, `tf2_geometry_msgs`, `geometry_msgs`, `std_msgs`
 
-### クローンとビルド
+### クローン
 
 ```bash
-cd ~/ros2_ws/src
+cd ~/your_ws/src
 git clone https://github.com/tmcit-ararobo-2026a/field-targets-publisher.git
-cd ~/ros2_ws
-source /opt/ros/humble/setup.bash
-rosdep install --from-paths src/field-targets-publisher --ignore-src -y --rosdistro humble
-colcon build --symlink-install --packages-select field_target_pub
-source install/setup.bash
 ```
 
-ROSパッケージ名は`field_target_pub`です。リポジトリ内のパッケージは`field-target-pub/`にあります。
+### ビルド
+
+```bash
+cd ~/your_ws
+colcon build --symlink-install --packages-select field-target-pub
+source install/setup.bash
+```
 
 ### 実行
 
 ```bash
-ros2 launch field_target_pub field-target-pub.launch.py config_file:=/absolute/path/targets.json
+ros2 run field-target-pub field_target_node
 ```
 
-既定の[config/targets.json](field-target-pub/config/targets.json)は未承認・座標なしのテンプレートです。ファイルをコピーし、実測値と識別情報を設定してください。設定は起動時に読み込み、変更時はrevisionを更新して再起動します。bag再生には`use_sim_time:=true`を指定できます。
+### パブリッシュされるトピック一覧
 
-型のみをビルドする場合は`--cmake-args -DBUILD_RUNTIME_NODES=OFF`を指定します。
+※オブジェクトが視野内に存在しない場合、すべてのトピックに `99.0` が送信される。
 
-### パブリッシュされるトピック
-
-| トピック | 型 | 内容 |
+| トピック名 | 型 | 説明 |
 | :--- | :--- | :--- |
-| `/field/targets` | `field_target_pub/msg/TargetSet` | チーム・地図・revisionと各対象の座標・有効性 |
-| `/tf_static` | `tf2_msgs/msg/TFMessage` | 承認済みの固定物中心TF |
+| `bucket_target` | `std_msgs/msg/Float32` | バケツ（`bucket_1`, `2`, `3`）の相対角度（rad） |
+| `move_bucket_target` | `std_msgs/msg/Float32` | 相手ロボット（`opponent_robot`）の相対角度（rad） |
+| `flag_target` | `std_msgs/msg/Float32` | 旗（`flag_base`）の相対角度（rad） |
+| `desk_target` | `std_msgs/msg/Float32` | 机（`desk_1`〜`4`）の相対角度（rad） |
 
 ---
 
 ## 4. システム構成
 
-### 対象の設定
-
-承認済み設定には次の項目が必要です。
-
-| 項目 | 内容 |
-| :--- | :--- |
-| `schema_version` / `approved` | `1` / `true` |
-| `team` | `red`または`blue`を明示 |
-| `map_id` / `map_frame` | 使用する地図の識別子・座標系 |
-| `revision` | 0より大きい設定の版番号 |
-| `targets` | 固定対象ID 0〜6を重複・欠落なく指定 |
-
-各targetには`label`と`stop_pose=[x,y,z,yaw]`を指定します。停止Poseは2Dで`z=0`、yawはradです。ID 1〜6には`aim_point=[x,y,z]`と`object_center=[x,y,z]`も必要です。ID 0のStartZoneは停止Poseだけを持ちます。位置の単位はmです。
-
-非有限値、重複・欠落ID、不正な設定を拒否します。未承認設定では有効な対象や静的TFを配信しません。`expected_map_id`パラメータで地図IDの一致を検査できます。利用側でもチーム・地図・revisionを照合してください。
-
-### 固定TFと方位角
-
-承認済みの物体中心から、`bucket_`、`desk_`、`flag_`で始まるcenterフレームを生成します。対象IDを持たない固定物は`static_objects=[{frame_id,object_center:[x,y,z]},...]`で追加できます。frame_idはこれらの接頭辞を持ち、一意である必要があります。既知物体のTFはLiDAR認識側の除外に利用できます。
-
-`map → base_link` TFから数学的な`bearing_rad`を計算し、TF断・期限切れ・時計停止では`bearing_valid=false`にします。通信向け角度の符号・丸め・無効値は未確定のため、`angle_valid`はfalseです。
-
-固定TFを変更する場合は利用ノードも再起動し、古い静的情報を別の地図へ持ち越さないでください。実機の停止位置・照準点・中心座標は実測による確認が必要です。
+- **自動エリア判定**: ロボットのY座標（`map` から見た `base_link`）を監視し、自陣が領域Aか領域Bかを自動で切り替える。
+- **Static TF の配信**: フィールド上の各種目標物（旗、机、バケツなど）の座標を `map` フレーム基準で静的に配信する。
+- **視野角フィルタリング**: 自機から見た各ターゲットの方位角度を計算し、前方40度以内にあるターゲットのみを抽出する。
+- **トピック配信**: カテゴリごとに分類し、視界にない場合はデフォルト値として `99.0` をパブリッシュする。
 
 ---
 
 ## 5. ライセンス
 
-本リポジトリは[MITライセンス](LICENSE)のもとで公開されています。
+本リポジトリは [MITライセンス](./LICENSE) のもとで公開されている。
