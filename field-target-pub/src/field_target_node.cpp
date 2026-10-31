@@ -1,6 +1,10 @@
+#include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <cstdint>
 #include <memory>
 #include <std_msgs/msg/float32_multi_array.hpp>
+#include <std_msgs/msg/int8_multi_array.hpp>
 #include <string>
 #include <vector>
 
@@ -20,7 +24,7 @@ public:
         tf_buffer_   = std::make_shared<tf2_ros::Buffer>(this->get_clock());
         tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
         targets_     = {
-            // 領域A
+  // 領域A
             {    "flag_a_base",   0.55,  3.025,  (0.0 + 0.18) / 2.0},
             {       "desk_1_a", -2.295,  3.855,  (0.0 + 0.76) / 2.0},
             {       "desk_2_a",  3.395,  3.855,  (0.0 + 0.76) / 2.0},
@@ -30,7 +34,7 @@ public:
             {"bucket_2_a_base",  -1.27,   1.48,  (0.0 + 0.60) / 2.0},
             {"bucket_3_a_base",   2.37,   1.48,  (0.0 + 0.30) / 2.0},
 
-            // 領域B
+ // 領域B
             {    "flag_b_base",   0.55, -3.025,  (0.0 + 0.18) / 2.0},
             {       "desk_1_b", -2.295, -3.855,  (0.0 + 0.76) / 2.0},
             {       "desk_2_b",  3.395, -3.855,  (0.0 + 0.76) / 2.0},
@@ -61,6 +65,9 @@ public:
             this->create_publisher<std_msgs::msg::Float32>("/robot/operation/flag_angle", 10);
         desk_publisher =
             this->create_publisher<std_msgs::msg::Float32>("robot/operation/desk_angle", 10);
+        target_angles_publisher_ = this->create_publisher<std_msgs::msg::Int8MultiArray>(
+            "/robot/operation/target_angles", 10
+        );
     }
 
 private:
@@ -88,6 +95,17 @@ private:
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr move_bucket_publisher;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr flag_publisher;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr desk_publisher;
+    rclcpp::Publisher<std_msgs::msg::Int8MultiArray>::SharedPtr target_angles_publisher_;
+
+    static int8_t quantize_angle_rad(double angle_rad)
+    {
+        const double threshold_rad = 20.0 * M_PI / 180.0;
+        if (angle_rad < -threshold_rad || angle_rad > threshold_rad) {
+            return INT8_MIN;
+        }
+        double scaled = std::round((angle_rad / threshold_rad) * 127.0);
+        return static_cast<int8_t>(std::clamp(scaled, -127.0, 127.0));
+    }
 
     bool fielda = true;
 
@@ -170,20 +188,34 @@ private:
         float flag_val                = 99.0f;
         float desk_val                = 99.0f;
 
+        int8_t move_bucket_angle_yaw = INT8_MIN;
+        int8_t bucket1_angle_yaw     = INT8_MIN;
+        int8_t bucket2_angle_yaw     = INT8_MIN;
+        int8_t bucket3_angle_yaw     = INT8_MIN;
+        int8_t flag_angle_yaw        = INT8_MIN;
+        int8_t desk_angle_yaw        = INT8_MIN;
+
         for (const auto& t : found_targets) {
-            float ang = static_cast<float>(t.angle_rad);
+            float ang       = static_cast<float>(t.angle_rad);
+            int8_t int8_ang = quantize_angle_rad(t.angle_rad);
             if (t.name.find("bucket_1") != std::string::npos) {
-                bucket_val[0] = ang;
+                bucket_val[0]     = ang;
+                bucket1_angle_yaw = int8_ang;
             } else if (t.name.find("bucket_2") != std::string::npos) {
-                bucket_val[1] = ang;
+                bucket_val[1]     = ang;
+                bucket2_angle_yaw = int8_ang;
             } else if (t.name.find("bucket_3") != std::string::npos) {
-                bucket_val[2] = ang;
+                bucket_val[2]     = ang;
+                bucket3_angle_yaw = int8_ang;
             } else if (t.name.find("opponent_robot") != std::string::npos) {
-                move_bucket_val = ang;
+                move_bucket_val       = ang;
+                move_bucket_angle_yaw = int8_ang;
             } else if (t.name.find("flag") != std::string::npos) {
-                flag_val = ang;
+                flag_val       = ang;
+                flag_angle_yaw = int8_ang;
             } else if (t.name.find("desk") != std::string::npos) {
-                desk_val = ang;
+                desk_val       = ang;
+                desk_angle_yaw = int8_ang;
             }
         }
 
@@ -191,16 +223,25 @@ private:
         std_msgs::msg::Float32 move_bucket_msg;
         std_msgs::msg::Float32 flag_msg;
         std_msgs::msg::Float32 desk_msg;
+        std_msgs::msg::Int8MultiArray target_angles_msg;
 
-        bucket_msg.data      = bucket_val;
-        move_bucket_msg.data = move_bucket_val;
-        flag_msg.data        = flag_val;
-        desk_msg.data        = desk_val;
+        bucket_msg.data        = bucket_val;
+        move_bucket_msg.data   = move_bucket_val;
+        flag_msg.data          = flag_val;
+        desk_msg.data          = desk_val;
+        target_angles_msg.data = {
+            move_bucket_angle_yaw,
+            bucket1_angle_yaw,
+            bucket2_angle_yaw,
+            bucket3_angle_yaw,
+            flag_angle_yaw,
+            desk_angle_yaw};
 
         bucket_publisher->publish(bucket_msg);
         move_bucket_publisher->publish(move_bucket_msg);
         flag_publisher->publish(flag_msg);
         desk_publisher->publish(desk_msg);
+        target_angles_publisher_->publish(target_angles_msg);
     }
     void field_search()
     {

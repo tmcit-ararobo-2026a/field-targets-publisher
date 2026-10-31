@@ -54,14 +54,15 @@ ros2 run field-target-pub field_target_node
 
 ### パブリッシュされるトピック一覧
 
-※オブジェクトが視野内に存在しない場合、すべてのトピックに `99.0` が送信される。
+※オブジェクトが視野内に存在しない場合、Float32系トピックには `99.0` が送信される。`target_angles` では範囲外・未検出の要素に `INT8_MIN` (-128) が設定される。
 
 | トピック名 | 型 | 説明 |
 | :--- | :--- | :--- |
-| `bucket_target` | `std_msgs/msg/Float32` | バケツ（`bucket_1`, `2`, `3`）の相対角度（rad） |
-| `move_bucket_target` | `std_msgs/msg/Float32` | 相手ロボット（`opponent_robot`）の相対角度（rad） |
-| `flag_target` | `std_msgs/msg/Float32` | 旗（`flag_base`）の相対角度（rad） |
-| `desk_target` | `std_msgs/msg/Float32` | 机（`desk_1`〜`4`）の相対角度（rad） |
+| `/robot/operation/target_angles` | `std_msgs/msg/Int8MultiArray` | 水平角6要素（移動バケツ、バケツ1〜3、旗、机。-20〜20degを-127〜127に対応、範囲外はINT8_MIN） |
+| `/robot/operation/fixed_buckets_angle` | `std_msgs/msg/Float32MultiArray` | バケツ（`bucket_1`, `2`, `3`）の相対角度（rad） |
+| `robot/operation/move_bucket_angle` | `std_msgs/msg/Float32` | 相手ロボット（`opponent_robot`）の相対角度（rad） |
+| `/robot/operation/flag_angle` | `std_msgs/msg/Float32` | 旗（`flag_base`）の相対角度（rad） |
+| `robot/operation/desk_angle` | `std_msgs/msg/Float32` | 机（`desk_1`〜`4`）の相対角度（rad） |
 
 ---
 
