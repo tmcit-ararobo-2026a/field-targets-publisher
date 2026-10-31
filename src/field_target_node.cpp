@@ -3,14 +3,12 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
-#include <std_msgs/msg/float32_multi_array.hpp>
 #include <std_msgs/msg/int8_multi_array.hpp>
 #include <string>
 #include <vector>
 
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "rclcpp/rclcpp.hpp"
-#include "std_msgs/msg/float32.hpp"
 #include "tf2/LinearMath/Quaternion.h"
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/static_transform_broadcaster.h"
@@ -56,15 +54,6 @@ public:
         field_timer_ = this->create_wall_timer(
             std::chrono::milliseconds(100), std::bind(&FieldTargetNode::field_search, this)
         );
-        bucket_publisher = this->create_publisher<std_msgs::msg::Float32MultiArray>(
-            "/robot/operation/fixed_buckets_angle", 10
-        );
-        move_bucket_publisher =
-            this->create_publisher<std_msgs::msg::Float32>("robot/operation/move_bucket_angle", 10);
-        flag_publisher =
-            this->create_publisher<std_msgs::msg::Float32>("/robot/operation/flag_angle", 10);
-        desk_publisher =
-            this->create_publisher<std_msgs::msg::Float32>("robot/operation/desk_angle", 10);
         target_angles_publisher_ = this->create_publisher<std_msgs::msg::Int8MultiArray>(
             "/robot/operation/target_angles", 10
         );
@@ -91,10 +80,6 @@ private:
     rclcpp::TimerBase::SharedPtr lookup_timer_;
     rclcpp::TimerBase::SharedPtr field_timer_;
 
-    rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr bucket_publisher;
-    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr move_bucket_publisher;
-    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr flag_publisher;
-    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr desk_publisher;
     rclcpp::Publisher<std_msgs::msg::Int8MultiArray>::SharedPtr target_angles_publisher_;
 
     static int8_t quantize_angle_rad(double angle_rad)
@@ -183,11 +168,6 @@ private:
 
         } catch (tf2::TransformException& ex) {
         }
-        std::vector<float> bucket_val = {99.0f, 99.0f, 99.0f};
-        float move_bucket_val         = 99.0f;
-        float flag_val                = 99.0f;
-        float desk_val                = 99.0f;
-
         int8_t move_bucket_angle_yaw = INT8_MIN;
         int8_t bucket1_angle_yaw     = INT8_MIN;
         int8_t bucket2_angle_yaw     = INT8_MIN;
@@ -196,39 +176,23 @@ private:
         int8_t desk_angle_yaw        = INT8_MIN;
 
         for (const auto& t : found_targets) {
-            float ang       = static_cast<float>(t.angle_rad);
             int8_t int8_ang = quantize_angle_rad(t.angle_rad);
             if (t.name.find("bucket_1") != std::string::npos) {
-                bucket_val[0]     = ang;
                 bucket1_angle_yaw = int8_ang;
             } else if (t.name.find("bucket_2") != std::string::npos) {
-                bucket_val[1]     = ang;
                 bucket2_angle_yaw = int8_ang;
             } else if (t.name.find("bucket_3") != std::string::npos) {
-                bucket_val[2]     = ang;
                 bucket3_angle_yaw = int8_ang;
             } else if (t.name.find("opponent_robot") != std::string::npos) {
-                move_bucket_val       = ang;
                 move_bucket_angle_yaw = int8_ang;
             } else if (t.name.find("flag") != std::string::npos) {
-                flag_val       = ang;
                 flag_angle_yaw = int8_ang;
             } else if (t.name.find("desk") != std::string::npos) {
-                desk_val       = ang;
                 desk_angle_yaw = int8_ang;
             }
         }
 
-        std_msgs::msg::Float32MultiArray bucket_msg;
-        std_msgs::msg::Float32 move_bucket_msg;
-        std_msgs::msg::Float32 flag_msg;
-        std_msgs::msg::Float32 desk_msg;
         std_msgs::msg::Int8MultiArray target_angles_msg;
-
-        bucket_msg.data        = bucket_val;
-        move_bucket_msg.data   = move_bucket_val;
-        flag_msg.data          = flag_val;
-        desk_msg.data          = desk_val;
         target_angles_msg.data = {
             move_bucket_angle_yaw,
             bucket1_angle_yaw,
@@ -237,10 +201,6 @@ private:
             flag_angle_yaw,
             desk_angle_yaw};
 
-        bucket_publisher->publish(bucket_msg);
-        move_bucket_publisher->publish(move_bucket_msg);
-        flag_publisher->publish(flag_msg);
-        desk_publisher->publish(desk_msg);
         target_angles_publisher_->publish(target_angles_msg);
     }
     void field_search()

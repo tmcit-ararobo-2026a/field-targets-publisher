@@ -54,15 +54,11 @@ ros2 run field-target-pub field_target_node
 
 ### パブリッシュされるトピック一覧
 
-※オブジェクトが視野内に存在しない場合、Float32系トピックには `99.0` が送信される。`target_angles` では範囲外・未検出の要素に `INT8_MIN` (-128) が設定される。
+※範囲外または未検出の要素には `INT8_MIN` (-128) が設定される。
 
 | トピック名 | 型 | 説明 |
 | :--- | :--- | :--- |
 | `/robot/operation/target_angles` | `std_msgs/msg/Int8MultiArray` | 水平角6要素（移動バケツ、バケツ1〜3、旗、机。-20〜20degを-127〜127に対応、範囲外はINT8_MIN） |
-| `/robot/operation/fixed_buckets_angle` | `std_msgs/msg/Float32MultiArray` | バケツ（`bucket_1`, `2`, `3`）の相対角度（rad） |
-| `robot/operation/move_bucket_angle` | `std_msgs/msg/Float32` | 相手ロボット（`opponent_robot`）の相対角度（rad） |
-| `/robot/operation/flag_angle` | `std_msgs/msg/Float32` | 旗（`flag_base`）の相対角度（rad） |
-| `robot/operation/desk_angle` | `std_msgs/msg/Float32` | 机（`desk_1`〜`4`）の相対角度（rad） |
 
 ---
 
@@ -71,7 +67,7 @@ ros2 run field-target-pub field_target_node
 - **自動エリア判定**: ロボットのY座標（`map` から見た `base_link`）を監視し、自陣が領域Aか領域Bかを自動で切り替える。
 - **Static TF の配信**: フィールド上の各種目標物（旗、机、バケツなど）の座標を `map` フレーム基準で静的に配信する。
 - **視野角フィルタリング**: 自機から見た各ターゲットの方位角度を計算し、前方40度以内にあるターゲットのみを抽出する。
-- **トピック配信**: カテゴリごとに分類し、視界にない場合はデフォルト値として `99.0` をパブリッシュする。
+- **トピック配信**: 水平角を計算し、視野外または未検出の場合はデフォルト値として `INT8_MIN` (-128) をパブリッシュする。
 
 ---
 
